@@ -197,6 +197,8 @@ class GLGraphics {
 									var bitmapWidth:Int = bitmap.width;
 									var bitmapHeight:Int = bitmap.height;
 									
+									// TODO (Zaphod): move UV calculations to shader???
+									
 									if (matrix != null)
 									{
 										inverseMatrix.copyFrom(matrix);
@@ -259,7 +261,34 @@ class GLGraphics {
 										}
 										
 										graphicsRect.setTo(x1, y1, x2, y2);
+										
+										// TODO (Zaphod): move this block of code to getBuffer() method...
+										#if openfl_power_of_two
+										var textureWidth:Int = 1;
+										var textureHeight:Int = 1;
+										
+										while (textureWidth < bitmapWidth) 
+										{
+											textureWidth <<= 1;
+										}
+										
+										while (textureHeight < bitmapHeight) 
+										{
+											textureHeight <<= 1;
+										}
+										
+										var scaleX = (bitmapWidth / textureWidth);
+										var scaleY = (bitmapHeight / textureHeight);
+										
+										u1 *= scaleX;
+										u2 *= scaleX;
+										v1 *= scaleY;
+										v2 *= scaleY;
+										#end
+										// end of TODO...
+										
 										graphicsUV.setTo(u1, v1, u2, v2);
+										
 										var buffer = getBuffer(gl, worldAlpha, graphicsRect, graphicsUV);
 										
 										gl.bindBuffer (gl.ARRAY_BUFFER, buffer);
@@ -322,33 +351,6 @@ class GLGraphics {
 	private static function getBuffer(gl:GLRenderContext, alpha:Float, graphicsRect:Rectangle, ?graphicsUV:Rectangle):GLBuffer {
 		
 		if (graphicsBuffer == null || graphicsContext != gl) {
-			
-			#if openfl_power_of_two
-			
-			var newWidth = 1;
-			var newHeight = 1;
-			
-			while (newWidth < width) {
-				
-				newWidth <<= 1;
-				
-			}
-			
-			while (newHeight < height) {
-				
-				newHeight <<= 1;
-				
-			}
-			
-			var uvWidth = width / newWidth;
-			var uvHeight = height / newHeight;
-			
-			#else
-			
-			var uvWidth = 1;
-			var uvHeight = 1;
-			
-			#end
 			
 			graphicsBufferData = new Float32Array (24);
 			
