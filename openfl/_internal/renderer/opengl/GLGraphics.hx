@@ -101,6 +101,8 @@ class GLGraphics {
 	
 	public static function render (graphics:Graphics, renderSession:RenderSession, parentTransform:Matrix, worldAlpha:Float):Void {
 		
+	//	return; // no graphics drawing
+		
 		if (!graphics.__visible || graphics.__commands.length == 0)
 		{
 			return;
@@ -129,6 +131,8 @@ class GLGraphics {
 				
 				var renderer:GLRenderer = cast renderSession.renderer;
 				var gl = renderSession.gl;
+				
+				var renderMatrix = renderer.getMatrix(parentTransform);
 				
 				// bitmap fill parameters
 				var bitmap = null;
@@ -245,7 +249,7 @@ class GLGraphics {
 										
 										shader.data.uImage0.input = bitmap;
 										shader.data.uImage0.smoothing = renderSession.allowSmoothing && (smooth || renderSession.upscaled);
-										shader.data.uMatrix.value = renderer.getMatrix (parentTransform);
+										shader.data.uMatrix.value = renderMatrix;
 										
 										renderSession.shaderManager.setShader (shader);
 										
@@ -304,7 +308,7 @@ class GLGraphics {
 									// color fill
 									var shader = colorFillShader;
 									
-									shader.data.uMatrix.value = renderer.getMatrix (parentTransform);
+									shader.data.uMatrix.value = renderMatrix;
 									
 									var uColor = shader.data.uColor.value;
 									uColor[0] = ((color >> 16) & 0xff) / 255;
@@ -396,7 +400,8 @@ class GLGraphics {
 		}
 		
 		gl.bindBuffer (gl.ARRAY_BUFFER, graphicsBuffer);
-		gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.STATIC_DRAW);
+		gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.DYNAMIC_DRAW);
+	//	gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.STATIC_DRAW);
 		
 		return graphicsBuffer;
 		

@@ -34,7 +34,7 @@ class CairoTextField {
 	
 	public static function render (textField:TextField, renderSession:RenderSession, transform:Matrix) {
 		
-		return; // TODO (Zaphod): remove this line???
+	//	return; // TODO (Zaphod): remove this line???
 		
 		#if lime_cairo
 		
