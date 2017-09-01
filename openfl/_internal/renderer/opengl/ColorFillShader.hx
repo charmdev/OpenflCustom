@@ -10,29 +10,28 @@ class ColorFillShader extends Shader
 
 	@:glVertexSource(
 		
-		"attribute float aAlpha;
-		attribute vec4 aPosition;
-		
-		varying float vAlpha;
+		"attribute vec2 aPosition;
 		
 		uniform mat4 uMatrix;
 		
+		uniform vec4 uPositionRegion;
+		
 		void main(void) 
 		{	
-			vAlpha = aAlpha;
-			gl_Position = uMatrix * aPosition;
+			vec2 position = uPositionRegion.xy + aPosition.xy * uPositionRegion.zw;
+			gl_Position = uMatrix * vec4(position.x, position.y, 0.0, 1.0);
 		}"
 	)
 	
 	@:glFragmentSource( 
 		
-		"varying float vAlpha;
+		"uniform float uAlpha;
 		
 		uniform vec3 uColor;
 		
 		void main()
 		{
-			gl_FragColor = vec4(uColor, vAlpha);
+			gl_FragColor = vec4(uColor, uAlpha);
 		}"
 	)
 	
@@ -42,6 +41,8 @@ class ColorFillShader extends Shader
 		
 		#if !macro
 		data.uColor.value = [1.0, 1.0, 1.0];
+		data.uPositionRegion.value = [0.0, 0.0, 1.0, 1.0];
+		data.uAlpha.value = [1.0];
 		#end
 	}
 	

@@ -23,14 +23,12 @@ class GLGraphics {
 	
 	private static var inverseMatrix:Matrix = new Matrix();
 	
-	private static var graphicsRect:Rectangle = new Rectangle();
-	private static var graphicsUV:Rectangle = new Rectangle();
-	
 	private static var graphicsBuffer:GLBuffer;
 	private static var graphicsContext:GLRenderContext;
 	private static var graphicsBufferData:Float32Array;
 	
 	private static var colorFillShader:ColorFillShader = new ColorFillShader();
+	private static var textureFillShader:TextureFillShader = new TextureFillShader();
 	
 	private static function isCompatible (graphics:Graphics, parentTransform:Matrix):Bool {
 		
@@ -245,27 +243,6 @@ class GLGraphics {
 									
 									if (!skip)
 									{
-										var shader = renderSession.shaderManager.defaultShader;
-										
-										shader.data.uImage0.input = bitmap;
-										shader.data.uImage0.smoothing = renderSession.allowSmoothing && (smooth || renderSession.upscaled);
-										shader.data.uMatrix.value = renderMatrix;
-										
-										renderSession.shaderManager.setShader (shader);
-										
-										if (repeat)
-										{
-											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-										}
-										else
-										{
-											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-										}
-										
-										graphicsRect.setTo(x1, y1, x2, y2);
-										
 										// TODO (Zaphod): move this block of code to getBuffer() method...
 										#if openfl_power_of_two
 										var textureWidth:Int = 1;
@@ -291,14 +268,41 @@ class GLGraphics {
 										#end
 										// end of TODO...
 										
-										graphicsUV.setTo(u1, v1, u2, v2);
+										var shader = textureFillShader;
 										
-										var buffer = getBuffer(gl, worldAlpha, graphicsRect, graphicsUV);
+										shader.data.uImage0.input = bitmap;
+										shader.data.uImage0.smoothing = renderSession.allowSmoothing && (smooth || renderSession.upscaled);
+										shader.data.uMatrix.value = renderMatrix;
+										
+										shader.data.uPositionRegion.value[0] = x1;
+										shader.data.uPositionRegion.value[1] = y1;
+										shader.data.uPositionRegion.value[2] = x2 - x1;
+										shader.data.uPositionRegion.value[3] = y2 - y1;
+										
+										shader.data.uTextureRegion.value[0] = u1;
+										shader.data.uTextureRegion.value[1] = v1;
+										shader.data.uTextureRegion.value[2] = u2;
+										shader.data.uTextureRegion.value[3] = v2;
+										
+										shader.data.uAlpha.value[0] = worldAlpha;
+										
+										renderSession.shaderManager.setShader (shader);
+										
+										if (repeat)
+										{
+											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+										}
+										else
+										{
+											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+											gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+										}
+										
+										var buffer = getBuffer(gl);
 										
 										gl.bindBuffer (gl.ARRAY_BUFFER, buffer);
-										gl.vertexAttribPointer (shader.data.aPosition.index, 3, gl.FLOAT, false, 6 * Float32Array.BYTES_PER_ELEMENT, 0);
-										gl.vertexAttribPointer (shader.data.aTexCoord.index, 2, gl.FLOAT, false, 6 * Float32Array.BYTES_PER_ELEMENT, 3 * Float32Array.BYTES_PER_ELEMENT);
-										gl.vertexAttribPointer (shader.data.aAlpha.index, 1, gl.FLOAT, false, 6 * Float32Array.BYTES_PER_ELEMENT, 5 * Float32Array.BYTES_PER_ELEMENT);
+										gl.vertexAttribPointer (shader.data.aPosition.index, 2, gl.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0);
 										
 										gl.drawArrays (gl.TRIANGLE_STRIP, 0, 4);
 									}
@@ -315,6 +319,13 @@ class GLGraphics {
 									uColor[1] = ((color >> 8) & 0xff) / 255;
 									uColor[2] = (color & 0xff) / 255;
 									
+									shader.data.uPositionRegion.value[0] = x1;
+									shader.data.uPositionRegion.value[1] = y1;
+									shader.data.uPositionRegion.value[2] = x2 - x1;
+									shader.data.uPositionRegion.value[3] = y2 - y1;
+									
+									shader.data.uAlpha.value[0] = worldAlpha * alpha;
+									
 									renderSession.shaderManager.setShader (shader);
 									
 									gl.bindTexture (gl.TEXTURE_2D, null);
@@ -325,11 +336,10 @@ class GLGraphics {
 										
 									}
 									
-									graphicsRect.setTo(x1, y1, x2, y2);
-									var buffer = getBuffer(gl, worldAlpha * alpha, graphicsRect, null);
+									var buffer = getBuffer(gl);
+									
 									gl.bindBuffer (gl.ARRAY_BUFFER, buffer);
-									gl.vertexAttribPointer (shader.data.aPosition.index, 3, gl.FLOAT, false, 6 * Float32Array.BYTES_PER_ELEMENT, 0);
-									gl.vertexAttribPointer (shader.data.aAlpha.index, 1, gl.FLOAT, false, 6 * Float32Array.BYTES_PER_ELEMENT, 5 * Float32Array.BYTES_PER_ELEMENT);
+									gl.vertexAttribPointer (shader.data.aPosition.index, 2, gl.FLOAT, false, 2 * Float32Array.BYTES_PER_ELEMENT, 0);
 									
 									gl.drawArrays (gl.TRIANGLE_STRIP, 0, 4);
 								}
@@ -352,56 +362,32 @@ class GLGraphics {
 		
 	}
 	
-	private static function getBuffer(gl:GLRenderContext, alpha:Float, graphicsRect:Rectangle, ?graphicsUV:Rectangle):GLBuffer {
+	private static function getBuffer(gl:GLRenderContext):GLBuffer {
 		
 		if (graphicsBuffer == null || graphicsContext != gl) {
 			
-			graphicsBufferData = new Float32Array (24);
+			graphicsBufferData = new Float32Array (8);
 			
-			for (i in 0...24)
-			{
-				graphicsBufferData[i] = 0.0;
-			}
+			graphicsBufferData[0] = 1.0; // width
+			graphicsBufferData[1] = 1.0; // height
+			
+			graphicsBufferData[2] = 0.0; // x
+			graphicsBufferData[3] = 1.0; // y
+			
+			graphicsBufferData[4] = 1.0; // width
+			graphicsBufferData[5] = 0.0; // y
+			
+			graphicsBufferData[6] = 0.0; // x
+			graphicsBufferData[7] = 0.0; // y
 			
 			graphicsContext = gl;
 			graphicsBuffer = gl.createBuffer ();
 			
+			gl.bindBuffer (gl.ARRAY_BUFFER, graphicsBuffer);
+			gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.STATIC_DRAW);
+			gl.bindBuffer (gl.ARRAY_BUFFER, null);
+			
 		}
-		
-		graphicsBufferData[0] = graphicsRect.width;
-		graphicsBufferData[1] = graphicsRect.height;
-		graphicsBufferData[5] = alpha;
-		
-		graphicsBufferData[6] = graphicsRect.x;
-		graphicsBufferData[7] = graphicsRect.height;
-		graphicsBufferData[11] = alpha;
-		
-		graphicsBufferData[12] = graphicsRect.width;
-		graphicsBufferData[13] = graphicsRect.y;
-		graphicsBufferData[17] = alpha;
-		
-		graphicsBufferData[18] = graphicsRect.x;
-		graphicsBufferData[19] = graphicsRect.y;
-		graphicsBufferData[23] = alpha;
-		
-		if (graphicsUV != null)
-		{
-			graphicsBufferData[3] = graphicsUV.width;
-			graphicsBufferData[4] = graphicsUV.height;
-			
-			graphicsBufferData[9] = graphicsUV.x;
-			graphicsBufferData[10] = graphicsUV.height;
-			
-			graphicsBufferData[15] = graphicsUV.width;
-			graphicsBufferData[16] = graphicsUV.y;
-			
-			graphicsBufferData[21] = graphicsUV.x;
-			graphicsBufferData[22] = graphicsUV.y;
-		}
-		
-		gl.bindBuffer (gl.ARRAY_BUFFER, graphicsBuffer);
-		gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.DYNAMIC_DRAW);
-	//	gl.bufferData (gl.ARRAY_BUFFER, graphicsBufferData.byteLength, graphicsBufferData, gl.STATIC_DRAW);
 		
 		return graphicsBuffer;
 		
