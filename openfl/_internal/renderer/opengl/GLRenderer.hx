@@ -105,10 +105,11 @@ class GLRenderer extends AbstractRenderer {
 		
 	}
 	
+	private var _matrix:Matrix = new Matrix();
 	
 	public function getMatrix (transform:Matrix):Array<Float> {
 		
-		var _matrix = Matrix.__pool.get ();
+	//	var _matrix = Matrix.__pool.get ();
 		_matrix.copyFrom (transform);
 		_matrix.concat (displayMatrix);
 		
@@ -134,7 +135,7 @@ class GLRenderer extends AbstractRenderer {
 			
 		}
 		
-		Matrix.__pool.release (_matrix);
+	//	Matrix.__pool.release (_matrix);
 		
 		return values;
 		
